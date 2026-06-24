@@ -8,10 +8,12 @@ sequenceDiagram
     participant FE as Frontend
     participant API as Transaction API
     participant Engine as Transaction Engine
+    participant DB as DB Session
     participant Trail as TransactionTrail
     participant Auth as Auth Service
     participant Pocket as Pocket Service
     participant Ledger as PocketEntry/Transaction
+   
 
     User->>FE: Nhập receiverPhone + amount
     FE->>API: POST /api/transactions/request
@@ -44,8 +46,22 @@ sequenceDiagram
     Engine->>Engine: validate TransField again
     Engine->>Engine: recalculate fee
     Engine->>Engine: validate TransValidation again
-    Engine->>Pocket: ExecuteTransaction in session.withTransaction
-    Pocket->>Ledger: create PocketEntry
+  
+    Engine->>DB Session: start session.withTransaction()
+
+    loop For each glStep
+        Engine->>Engine: Resolve amount from AMOUNT / DEBITFEE
+        Engine->>Engine: Resolve debit pocket
+        Engine->>Engine: Resolve credit pocket
+        Engine->>Pocket: Check debit pocket balance
+        Engine->>Pocket: Debit pocket balance using $inc
+        Engine->>Pocket: Credit pocket balance using $inc
+        Engine->>Pocket: Recalculate checksum for both pockets
+        Engine->>Entry: Create PocketEntry
+    end
+
+
+   
     Pocket->>Ledger: create Transaction receipt
     Pocket->>Trail: update status = done
     Engine->>Pocket: release sender account
@@ -62,6 +78,7 @@ sequenceDiagram
     participant FE as Frontend
     participant API as Transaction API
     participant Engine as Transaction Engine
+    participant DB as DB Session
     participant Trail as TransactionTrail
     participant Biller as Biller System
     participant Auth as Auth Service
@@ -102,27 +119,40 @@ sequenceDiagram
     Engine->>Engine: validate TransField again
     Engine->>Engine: recalculate fee
     Engine->>Engine: validate TransValidation again
-    Engine->>Pocket: ExecuteTransaction in session.withTransaction
-    Pocket->>Ledger: create PocketEntry
+   
+    Engine->>DB: Start session.withTransaction();
+    
+    loop For each glStep
+        Engine->>Engine: Resolve amount from AMOUNT / DEBITFEE
+        Engine->>Engine: Resolve debit pocket
+        Engine->>Engine: Resolve credit pocket
+        Engine->>Pocket: Check debit pocket balance
+        Engine->>Pocket: Debit pocket balance using $inc
+        Engine->>Pocket: Credit pocket balance using $inc
+        Engine->>Pocket: Recalculate checksum for both pockets
+        Engine->>Entry: Create PocketEntry
+    end
+
+    
     Pocket->>Ledger: create Transaction receipt
     Pocket-->>Engine: Debit customer success
 
     Engine->>Biller: Call paymentUrl(transRefId, billerId, customerCode, amount)
 
     alt Payment success
-    Biller-->>Engine: Payment success
-    Engine->>Trail: update status = done
-    Engine->>Pocket: release sender account
-    Engine-->>API: transaction success
-    API-->>FE: Return success receipt
-    FE-->>User: Hiển thị thanh toán thành công
+        Biller-->>Engine: Payment success
+        Engine->>Trail: update status = done
+        Engine->>Pocket: release sender account
+        Engine-->>API: transaction success
+        API-->>FE: Return success receipt
+        FE-->>User: Hiển thị thanh toán thành công
 
-else Payment failed
-    Biller-->>Engine: Payment failed
-    Engine->>Trail: update status = pending_reversal
-    Engine->>Pocket: release sender account
-    Engine-->>API: payment failed, need retry/refund
-    API-->>FE: Return payment failed
-    FE-->>User: Hiển thị trạng thái đang xử lý
-end
+    else Payment failed
+        Biller-->>Engine: Payment failed
+        Engine->>Trail: update status = pending_reversal
+        Engine->>Pocket: release sender account
+        Engine-->>API: payment failed, need retry/refund
+        API-->>FE: Return payment failed
+        FE-->>User: Hiển thị trạng thái đang xử lý
+    end
 ```
