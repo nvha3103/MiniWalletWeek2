@@ -8,6 +8,7 @@ sequenceDiagram
     participant FE as Frontend
     participant API as Transaction API
     participant Engine as Transaction Engine
+    participant ServiceValidation as ServiceValidation
     participant DB as DB Session
     participant Trail as TransactionTrail
     participant Auth as Auth Service
@@ -22,7 +23,7 @@ sequenceDiagram
     Engine->>Trail: init TransactionTrail
     Engine->>Engine: validate TransField
     Engine->>Engine: calculate fee
-    Engine->>Engine: validate TransValidation
+    Engine->> ServiceValidation: validate TransValidation
     Engine->>Trail: update status = pending
     Engine-->>API: preview {transRefId, amount, fee, totalAmount}
     API-->>FE: Return preview
@@ -45,7 +46,7 @@ sequenceDiagram
     Auth-->>Engine: PIN valid
     Engine->>Engine: validate TransField again
     Engine->>Engine: recalculate fee
-    Engine->>Engine: validate TransValidation again
+    Engine->>ServiceValidation: validate TransValidation again
   
     Engine->>DB Session: start session.withTransaction()
 

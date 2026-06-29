@@ -9,6 +9,8 @@ erDiagram
     Service ||--o{ TransValidation : has
     Service ||--|| TransDefinition : defines
     Service ||--o{ TransactionTrail : creates
+    
+    TransValidation ||--o{ ValidationRule : has
 
     TransactionTrail ||--|| Transaction : finalizes
     TransactionTrail ||--o{ PocketEntry : records
@@ -69,13 +71,24 @@ erDiagram
 
     TransValidation {
         string id PK
-        string service FK
-        string validateFunc
+        string serviceID FK
+        string validationRuleId
         string validateFields
         number order
         string errorCode
         string status
     }
+
+    ValidationRule {
+        String id PK
+        String code
+        String name
+        String description
+        String functionName
+        String inputFields
+        String status
+    }
+
 
     TransDefinition {
         string id PK
